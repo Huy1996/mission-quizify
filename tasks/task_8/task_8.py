@@ -41,7 +41,7 @@ class QuizGenerator:
             3. Provide the correct answer for the question from the list of answers as key "answer"
             4. Provide an explanation as to why the answer is correct as key "explanation"
             
-            You must respond as a JSON object with the following structure:
+            You must respond as following structure, DO NOT make it in JSON markdown format:
             {{
                 "question": "<question>",
                 "choices": [
@@ -68,7 +68,7 @@ class QuizGenerator:
         """
         self.llm = VertexAI(
             model_name = "gemini-pro",
-            temperature = 0.8, # Increased for less deterministic questions 
+            temperature = 0.5, # Increased for less deterministic questions 
             max_output_tokens = 500
         )
 
@@ -123,26 +123,40 @@ class QuizGenerator:
         """
         self.question_bank = [] # Reset the question bank
 
+        retry_limit = 3
+        retry_count = 0
+
         for _ in range(self.num_questions):
             ##### YOUR CODE HERE #####
-            question_str = # Use class method to generate question
-            
-            ##### YOUR CODE HERE #####
-            try:
-                # Convert the JSON String to a dictionary
-            except json.JSONDecodeError:
-                print("Failed to decode question JSON.")
-                continue  # Skip this iteration if JSON decoding fails
-            ##### YOUR CODE HERE #####
+            if retry_count >= retry_limit:
+                break
+            while True:
+                question_str = self.generate_question_with_vectorstore() # Use class method to generate question
+                
+                ##### YOUR CODE HERE #####
+                try:
+                    question = json.loads(question_str) # Convert the JSON String to a dictionary
+                    # print(question_str)
 
-            ##### YOUR CODE HERE #####
-            # Validate the question using the validate_question method
-            if self.validate_question(question):
-                print("Successfully generated unique question")
-                # Add the valid and unique question to the bank
-            else:
-                print("Duplicate or invalid question detected.")
-            ##### YOUR CODE HERE #####
+                except json.JSONDecodeError:
+                    print("Failed to decode question JSON.")
+                    retry_count += 1
+                    # print(question_str)
+                    continue  # Skip this iteration if JSON decoding fails
+                ##### YOUR CODE HERE #####
+
+                ##### YOUR CODE HERE #####
+                # Validate the question using the validate_question method
+                if self.validate_question(question):
+                    print("Successfully generated unique question")
+                    # Add the valid and unique question to the bank
+                    self.question_bank.append(question)
+                    retry_count = 0
+                    break
+                else:
+                    print("Duplicate or invalid question detected.")
+                    retry_count += 1
+                ##### YOUR CODE HERE #####
 
         return self.question_bank
 
@@ -170,7 +184,11 @@ class QuizGenerator:
         # Consider missing 'question' key as invalid in the dict object
         # Check if a question with the same text already exists in the self.question_bank
         ##### YOUR CODE HERE #####
-        return is_unique
+        new_question_text = question['question']
+        for q in self.question_bank:
+            if q['question'] == new_question_text:
+                return False
+        return True
 
 
 # Test Generating the Quiz
@@ -178,7 +196,7 @@ if __name__ == "__main__":
     
     embed_config = {
         "model_name": "textembedding-gecko@003",
-        "project": "YOUR-PROJECT-ID-HERE",
+        "project": "sample-mission-421421",
         "location": "us-central1"
     }
     
